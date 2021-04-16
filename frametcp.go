@@ -64,6 +64,11 @@ func (frame *TCPFrame) GetFunction() uint8 {
 	return frame.Function
 }
 
+// GetId returns the Modbus Station Addr.
+func (frame *TCPFrame) GetId() uint8 {
+	return frame.Device
+}
+
 // GetData returns the TCPFrame Data byte field.
 func (frame *TCPFrame) GetData() []byte {
 	return frame.Data
