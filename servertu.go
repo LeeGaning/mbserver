@@ -48,7 +48,9 @@ SkipFrameError:
 				return
 			}
 			request := &Request{port, frame}
-			s.requestChan <- request
+			// s.requestChan <- request
+			response := s.handle(request)
+			port.Write(response.Bytes())
 		}
 	}
 }

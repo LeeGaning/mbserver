@@ -84,8 +84,12 @@ func (s *Server) handle(request *Request) Framer {
 func (s *Server) handler() {
 	for {
 		request := <-s.requestChan
+		// go func() {
 		response := s.handle(request)
+		// buf := response.Bytes()
+		// log.Printf("[TX]% x", buf)
 		request.conn.Write(response.Bytes())
+		// }()
 	}
 }
 
