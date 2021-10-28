@@ -4,6 +4,7 @@ package mbserver
 import (
 	"io"
 	"net"
+	"sync"
 
 	"github.com/goburrow/serial"
 )
@@ -11,15 +12,16 @@ import (
 // Server is a Modbus slave with allocated memory for discrete inputs, coils, etc.
 type Server struct {
 	// Debug enables more verbose messaging.
-	Debug            bool
-	listeners        []net.Listener
-	ports            []serial.Port
-	requestChan      chan *Request
+	Debug     bool
+	listeners []net.Listener
+	ports     []serial.Port
+	// requestChan      chan *Request
 	function         [256](func(*Server, Framer) ([]byte, *Exception))
 	DiscreteInputs   []byte
 	Coils            []byte
 	HoldingRegisters []uint16
 	InputRegisters   []uint16
+	Lck              sync.Mutex
 }
 
 // Request contains the connection and Modbus frame.
@@ -48,8 +50,8 @@ func NewServer() *Server {
 	s.function[15] = WriteMultipleCoils
 	s.function[16] = WriteHoldingRegisters
 
-	s.requestChan = make(chan *Request)
-	go s.handler()
+	// s.requestChan = make(chan *Request)
+	// go s.handler()
 
 	return s
 }
@@ -67,7 +69,10 @@ func (s *Server) handle(request *Request) Framer {
 
 	function := request.frame.GetFunction()
 	if s.function[function] != nil {
+		// 处理请求时加锁
+		s.Lck.Lock()
 		data, exception = s.function[function](s, request.frame)
+		s.Lck.Unlock()
 		response.SetData(data)
 	} else {
 		exception = &IllegalFunction
@@ -81,17 +86,17 @@ func (s *Server) handle(request *Request) Framer {
 }
 
 // All requests are handled synchronously to prevent modbus memory corruption.
-func (s *Server) handler() {
-	for {
-		request := <-s.requestChan
-		// go func() {
-		response := s.handle(request)
-		// buf := response.Bytes()
-		// log.Printf("[TX]% x", buf)
-		request.conn.Write(response.Bytes())
-		// }()
-	}
-}
+// func (s *Server) handler() {
+// 	for {
+// 		request := <-s.requestChan
+// 		// go func() {
+// 		response := s.handle(request)
+// 		// buf := response.Bytes()
+// 		// log.Printf("[TX]% x", buf)
+// 		request.conn.Write(response.Bytes())
+// 		// }()
+// 	}
+// }
 
 // Close stops listening to TCP/IP ports and closes serial ports.
 func (s *Server) Close() {
