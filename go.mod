@@ -1,4 +1,4 @@
-module mbserver
+module github.com/LeeGaning/mbserver
 
 go 1.15
 
