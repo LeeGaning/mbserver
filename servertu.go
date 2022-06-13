@@ -25,32 +25,32 @@ func (s *Server) acceptSerialRequests(port serial.Port) {
 SkipFrameError:
 	for {
 		buf := make([]byte, 512)
-
 		bytesRead, err := port.Read(buf)
 		if err != nil {
 			if err != io.EOF {
+				for buffer.Len() > 5 {
+					b := make([]byte, buffer.Len())
+					_, err := buffer.Read(b)
+					if err != nil {
+						log.Printf("buffer read error %v\n", err)
+						break
+					}
+					frame, err := NewRTUFrame(b)
+					if err != nil {
+						log.Printf("bad serial frame error %v\n", err)
+						// return
+						break
+					}
+					request := &Request{port, frame}
+					// s.requestChan <- request
+					response := s.handle(request)
+					port.Write(response.Bytes())
+				}
 				continue SkipFrameError
 			}
 			log.Fatalf("serial read error %v\n", err)
 			return
 		}
 		buffer.Write(buf[:bytesRead])
-		for buffer.Len() > 5 {
-			b := make([]byte, buffer.Len())
-			_, err := buffer.Read(b)
-			if err != nil {
-				log.Printf("buffer read error %v\n", err)
-				break
-			}
-			frame, err := NewRTUFrame(b)
-			if err != nil {
-				log.Printf("bad serial frame error %v\n", err)
-				return
-			}
-			request := &Request{port, frame}
-			// s.requestChan <- request
-			response := s.handle(request)
-			port.Write(response.Bytes())
-		}
 	}
 }
