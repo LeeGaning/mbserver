@@ -19,26 +19,29 @@ func (s *Server) accept(listen net.Listener) error {
 		}
 
 		go func(conn net.Conn) {
-			defer conn.Close()
-
+			log.Printf("connected: %v<->%v\n", conn.LocalAddr(), conn.RemoteAddr())
+			packet_count := 0
+			packet := make([]byte, 512)
+			defer func() {
+				conn.Close()
+				log.Printf("closed: %v<->%v,packet_count:%d\n", conn.LocalAddr(), conn.RemoteAddr(), packet_count)
+			}()
 			for {
-				packet := make([]byte, 512)
 				bytesRead, err := conn.Read(packet)
 				if err != nil {
 					if err != io.EOF {
-						log.Printf("read error %v\n", err)
+						log.Printf("read error %v<->%v, %v\n", conn.LocalAddr(), conn.RemoteAddr(), err)
 					}
 					return
 				}
+				// log.Printf("packet %v,%d [% x]\n", conn.RemoteAddr(), bytesRead, packet[:bytesRead])
 				// Set the length of the packet to the number of read bytes.
-				packet = packet[:bytesRead]
-
-				frame, err := NewTCPFrame(packet)
+				frame, err := NewTCPFrame(packet[:bytesRead])
 				if err != nil {
 					log.Printf("bad packet error %v\n", err)
 					return
 				}
-
+				packet_count++
 				request := &Request{conn, frame}
 
 				// s.requestChan <- request
